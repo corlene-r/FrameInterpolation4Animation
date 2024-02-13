@@ -6,18 +6,22 @@ import numpy as np
 import random
 from torch.utils.data import DataLoader, Dataset
 
+
 cv2.setNumThreads(1)
+
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 class VimeoDataset(Dataset):
     def __init__(self, dataset_name, batch_size=32):
         self.batch_size = batch_size
         self.dataset_name = dataset_name        
         self.h = 256
         self.w = 448
-        self.data_root = 'vimeo_triplet'
+        self.data_root = 'anim_data' # Corlene change; previously vimeo_triplet
         self.image_root = os.path.join(self.data_root, 'sequences')
         train_fn = os.path.join(self.data_root, 'tri_trainlist.txt')
         test_fn = os.path.join(self.data_root, 'tri_testlist.txt')

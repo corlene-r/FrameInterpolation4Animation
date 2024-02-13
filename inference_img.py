@@ -4,18 +4,21 @@ import torch
 import argparse
 from torch.nn import functional as F
 import warnings
+
 warnings.filterwarnings("ignore")
 
 if torch.backends.mps.is_available():
+    print("using mps")
     device = torch.device("mps")
-    os.environment["PYTORCH_ENABLE_MPS_FALLBACK"] = 1
+    # os.environment["PYTORCH_ENABLE_MPS_FALLBACK"] = 1 # This var set in my conda env. 
 elif torch.cuda.is_available():
     device = torch.device("cuda")
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
 else:
     device = torch.device("cpu")
-torch.set_grad_enabled(False)
+
+torch.set_grad_enabled(False) ## I believe included for debugging purposes -Corlene
 
 parser = argparse.ArgumentParser(description='Interpolation for a pair of images')
 parser.add_argument('--img', dest='img', nargs=2, required=True)
@@ -30,7 +33,8 @@ args = parser.parse_args()
 try:
     try:
         try:
-            from model.RIFE_HDv2 import Model
+            print("Model directory used:", args.modelDir)
+            from train_log.RIFE_HDv3 import Model
             model = Model()
             model.load_model(args.modelDir, -1)
             print("Loaded v2.x HD model.")
@@ -40,7 +44,7 @@ try:
             model.load_model(args.modelDir, -1)
             print("Loaded v3.x HD model.")
     except:
-        from model.RIFE_HD import Model
+        from train_log.RIFE_HDv3 import Model
         model = Model()
         model.load_model(args.modelDir, -1)
         print("Loaded v1.x HD model")

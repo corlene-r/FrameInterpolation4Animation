@@ -12,15 +12,20 @@ from model.RIFE import Model
 from dataset import *
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
+# print("hello 1")
 from torch.utils.data.distributed import DistributedSampler
+
+import warnings
+warnings.filterwarnings("ignore")
+
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#torch.set_grad_enabled(False) ## I believe included for debugging purposes -Corlene
 
 log_path = 'train_log'
-
 def get_learning_rate(step):
     if step < 2000:
         mul = step / 2000.
@@ -39,7 +44,7 @@ def flow2rgb(flow_map_np):
     rgb_map[:, :, 2] += normalized_flow_map[:, :, 1]
     return rgb_map.clip(0, 1)
 
-def train(model, local_rank):
+def train(model, local_rank, mps):
     if local_rank == 0:
         writer = SummaryWriter('train')
         writer_val = SummaryWriter('validate')
@@ -49,16 +54,27 @@ def train(model, local_rank):
     step = 0
     nr_eval = 0
     dataset = VimeoDataset('train')
-    sampler = DistributedSampler(dataset)
-    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=8, pin_memory=True, drop_last=True, sampler=sampler)
+    if not mps:
+        sampler = DistributedSampler(dataset)
+    else:
+        sampler = None
+    train_data = DataLoader(dataset,
+                            batch_size=args.batch_size,
+                            num_workers=8,
+                            pin_memory=True,
+                            drop_last=True,
+                            sampler=sampler)
     args.step_per_epoch = train_data.__len__()
     dataset_val = VimeoDataset('validation')
     val_data = DataLoader(dataset_val, batch_size=16, pin_memory=True, num_workers=8)
     print('training...')
     time_stamp = time.time()
     for epoch in range(args.epoch):
-        sampler.set_epoch(epoch)
+        #print("Curr epoch:", epoch)
+        if not mps:
+            sampler.set_epoch(epoch)
         for i, data in enumerate(train_data):
+            #print("\ti: ", i)
             data_time_interval = time.time() - time_stamp
             time_stamp = time.time()
             data_gpu, timestep = data
@@ -94,8 +110,9 @@ def train(model, local_rank):
         nr_eval += 1
         if nr_eval % 5 == 0:
             evaluate(model, val_data, step, local_rank, writer_val)
-        model.save_model(log_path, local_rank)    
-        dist.barrier()
+        model.save_model(log_path, local_rank)
+        if not args.mps:
+            dist.barrier()
 
 def evaluate(model, val_data, nr_eval, local_rank, writer_val):
     loss_l1_list = []
@@ -144,15 +161,25 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=16, type=int, help='minibatch size')
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
     parser.add_argument('--world_size', default=4, type=int, help='world size')
+    parser.add_argument('--mps', default=False, type=bool, help='set to true for running in a Mac')
+    parser.add_argument('--model', default='train_log', help='directory of model to load from')
+    parser.add_argument('--lossfun', default='laploss', help='loss function (crossentropy or laploss)')
     args = parser.parse_args()
-    torch.distributed.init_process_group(backend="nccl", world_size=args.world_size)
-    torch.cuda.set_device(args.local_rank)
+    
     seed = 1234
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.benchmark = True
-    model = Model(args.local_rank)
-    train(model, args.local_rank)
+
+    if not args.mps:
+        torch.distributed.init_process_group(backend="nccl", world_size=args.world_size)
+        torch.cuda.set_device(args.local_rank)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.benchmark = True
         
+    model = Model(args.local_rank, args.mps, lossfun=args.lossfun)
+    # Download THEIR pretrained model & finetune on my reformated data
+    # Reformat animeinterp data to match vimeo_triplet format
+    model.load_model(args.model)
+    train(model, args.local_rank, args.mps)
+    

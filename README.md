@@ -115,6 +115,14 @@ Using gpu acceleration (requires proper gpu drivers for docker):
 docker run --rm -it --gpus all -v /dev/dri:/dev/dri -v $PWD:/host rife:latest inference_video --exp=1 --video=untitled.mp4 --output=untitled_rife.mp4
 ```
 
+### Run in MAC
+
+Before running the inference, you need to set the following environment variable:
+
+````
+export PYTORCH_ENABLE_MPS_FALLBACK=1 
+````
+
 ## Evaluation
 Download [RIFE model](https://drive.google.com/file/d/1h42aGYPNJn2q8j_GVkS_yDu__G_UZ2GX/view?usp=sharing) or [RIFE_m model](https://drive.google.com/file/d/147XVsDXBfJPlyct2jfo9kpbL944mNeZr/view?usp=sharing) reported by our paper.
 
@@ -125,6 +133,7 @@ Download [RIFE model](https://drive.google.com/file/d/1h42aGYPNJn2q8j_GVkS_yDu__
 **MiddleBury**: Download [MiddleBury OTHER dataset](https://vision.middlebury.edu/flow/data/) at ./other-data and ./other-gt-interp
 
 **HD**: Download [HD dataset](https://github.com/baowenbo/MEMC-Net) at ./HD_dataset. We also provide a [google drive download link](https://drive.google.com/file/d/1iHaLoR2g1-FLgr9MEv51NH_KQYMYz-FA/view?usp=sharing).
+
 ```
 # RIFE
 python3 benchmark/UCF101.py
@@ -135,13 +144,13 @@ python3 benchmark/MiddleBury_Other.py
 # "IE: 1.956"
 python3 benchmark/HD.py
 # "PSNR: 32.14"
-
 # RIFE_m
 python3 benchmark/HD_multi_4X.py
 # "PSNR: 22.96(544*1280), 31.87(720p), 34.25(1080p)"
 ```
 
-## Training and Reproduction
+
+## Training and Reproduction 
 Download [Vimeo90K dataset](http://toflow.csail.mit.edu/).
 
 We use 16 CPUs, 4 GPUs and 20G memory for training: 
@@ -184,3 +193,4 @@ Optical Flow:
 
 Video Interpolation: 
 [DVF](https://github.com/lxx1991/pytorch-voxel-flow)  [TOflow](https://github.com/Coldog2333/pytoflow)  [SepConv](https://github.com/sniklaus/sepconv-slomo)  [DAIN](https://github.com/baowenbo/DAIN)  [CAIN](https://github.com/myungsub/CAIN)  [MEMC-Net](https://github.com/baowenbo/MEMC-Net)   [SoftSplat](https://github.com/sniklaus/softmax-splatting)  [BMBC](https://github.com/JunHeum/BMBC)  [EDSC](https://github.com/Xianhang/EDSC-pytorch)  [EQVI](https://github.com/lyh-18/EQVI)
+r
