@@ -82,17 +82,16 @@ assert args.scale in [0.25, 0.5, 1.0, 2.0, 4.0]
 if not args.img is None:
     args.png = True
 
-
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-    if(args.fp16):
-        torch.set_default_tensor_type(torch.HalfTensor)
-elif torch.cuda.is_available():
+if torch.cuda.is_available():
     device = torch.device("cuda")
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     if(args.fp16):
         torch.set_default_tensor_type(torch.cuda.HalfTensor)
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+    if(args.fp16):
+        torch.set_default_tensor_type(torch.HalfTensor)
 else:
     device = torch.device("cpu")
 torch.set_grad_enabled(False)

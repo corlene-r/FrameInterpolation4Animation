@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from model.loss import *
 from model.laplacian import *
 from model.refine import *
-
+from model.crossentropy import CrossEntropyLoss
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -20,7 +20,7 @@ else:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
 class Model:
-    def __init__(self, local_rank=-1, mps=False, arbitrary=False):
+    def __init__(self, local_rank=-1, mps=False, arbitrary=False, lossfun='laploss'):
         if arbitrary == True:
             self.flownet = IFNet_m()
         else:
@@ -28,7 +28,12 @@ class Model:
         self.device()
         self.optimG = AdamW(self.flownet.parameters(), lr=1e-6, weight_decay=1e-3) # use large weight decay may avoid NaN loss
         self.epe = EPE()
-        self.lap = LapLoss()
+
+        if lossfun == 'laploss':
+            self.lap = LapLoss()
+        elif lossfun == 'crossentropy':
+            self.lap = CrossEntropyLoss()
+
         self.sobel = SOBEL()
         if local_rank != -1 and mps is False:
             self.flownet = DDP(self.flownet, device_ids=[local_rank], output_device=local_rank)
@@ -43,15 +48,16 @@ class Model:
         self.flownet.to(device)
 
     def load_model(self, path, rank=0):
-        def convert(param):
-            return {
-            k.replace("module.", ""): v
-                for k, v in param.items()
-                if "module." in k
-            }
+        # def convert(param):
+        #     return {
+        #     k.replace("module.", ""): v
+        #         for k, v in param.items()
+        #         if "module." in k
+        #     }
             
         if rank <= 0:
-            self.flownet.load_state_dict(convert(torch.load('{}/flownet.pkl'.format(path), map_location ='cpu')))
+            #self.flownet.load_state_dict(convert(torch.load('{}/flownet.pkl'.format(path))))
+            self.flownet.load_state_dict(torch.load('{}/flownet.pkl'.format(path), map_location=torch.device('mps')))
         
     def save_model(self, path, rank=0):
         if rank == 0:
